@@ -1,3 +1,4 @@
+[README.md](https://github.com/user-attachments/files/31596084/README.md)
 # Agenda AI — versione da pubblicare sul tuo sito (Vercel + GitHub)
 
 Questa cartella è pronta per essere pubblicata con la stessa modalità che
