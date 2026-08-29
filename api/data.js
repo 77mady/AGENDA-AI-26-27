@@ -7,8 +7,9 @@
 // localStorage del browser, che tratta questi due casi come memorie separate.
 //
 // Richiede che nel progetto Vercel sia collegato uno store "Blob"
-// (Storage → Create Database → Blob): questo imposta automaticamente
-// la variabile d'ambiente BLOB_READ_WRITE_TOKEN.
+// (Storage → Create Database → Blob → Connect to Project): questo imposta
+// automaticamente le variabili BLOB_STORE_ID e l'autenticazione OIDC di cui
+// l'SDK ha bisogno — non serve creare manualmente nessun token.
 //
 // Nota sulla privacy: questo endpoint non richiede autenticazione. Chiunque
 // conosca l'indirizzo del sito può, in teoria, leggere o modificare i dati
@@ -21,14 +22,9 @@ import { put, head } from "@vercel/blob";
 const BLOB_PATH = "agenda-ai-data.json";
 
 export default async function handler(req, res) {
-  const token = process.env.BLOB_READ_WRITE_TOKEN;
-  if (!token) {
-    return res.status(500).json({ error: "Storage non configurato sul server (manca BLOB_READ_WRITE_TOKEN)." });
-  }
-
   if (req.method === "GET") {
     try {
-      const info = await head(BLOB_PATH, { token }).catch(() => null);
+      const info = await head(BLOB_PATH).catch(() => null);
       if (!info) {
         return res.status(200).json({ events: [], categories: null, documents: [] });
       }
@@ -49,7 +45,6 @@ export default async function handler(req, res) {
         addRandomSuffix: false,
         allowOverwrite: true,
         contentType: "application/json",
-        token,
       });
       return res.status(200).json({ ok: true });
     } catch (err) {
