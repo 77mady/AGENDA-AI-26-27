@@ -199,13 +199,48 @@ let calDate = new Date();
 let pendingReview = null; // {events:[], sourceDoc}
 
 async function loadState(){
+  let serverData = null;
+  try{
+    const res = await fetch('/api/data', {cache:'no-store'});
+    if(res.ok) serverData = await res.json();
+  }catch(e){ /* server non raggiungibile: proseguiamo con eventuali dati locali sotto */ }
+
+  const hasServerData = serverData && ((serverData.events&&serverData.events.length) || (serverData.categories&&serverData.categories.length) || (serverData.documents&&serverData.documents.length));
+
+  if(hasServerData){
+    state.events = serverData.events || [];
+    state.categories = (serverData.categories && serverData.categories.length) ? serverData.categories : DEFAULT_CATEGORIES.slice();
+    state.documents = serverData.documents || [];
+    return;
+  }
+
+  // Nessun dato ancora sul server condiviso: recupera eventuali dati salvati
+  // in precedenza in questo browser (versioni precedenti dell'app) e, se
+  // presenti, migrali automaticamente sul server condiviso una sola volta,
+  // così non vanno persi passando alla nuova modalità di salvataggio.
   try{ const ev = localStorage.getItem('agenda_events'); if(ev) state.events = JSON.parse(ev); }catch(e){}
   try{ const cat = localStorage.getItem('agenda_categories'); if(cat) state.categories = JSON.parse(cat); }catch(e){}
   try{ const docs = localStorage.getItem('agenda_documents'); if(docs) state.documents = JSON.parse(docs); }catch(e){}
+  if(state.events.length || state.documents.length){
+    await saveAllState();
+    showToast('I tuoi dati precedenti sono stati trasferiti al nuovo salvataggio condiviso.');
+  }
 }
-async function saveEvents(){ try{ localStorage.setItem('agenda_events', JSON.stringify(state.events)); }catch(e){ showToast('Impossibile salvare al momento.'); } }
-async function saveCategories(){ try{ localStorage.setItem('agenda_categories', JSON.stringify(state.categories)); }catch(e){} }
-async function saveDocuments(){ try{ localStorage.setItem('agenda_documents', JSON.stringify(state.documents)); }catch(e){} }
+async function saveAllState(){
+  try{
+    const res = await fetch('/api/data', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({events: state.events, categories: state.categories, documents: state.documents})
+    });
+    if(!res.ok){ const d=await res.json().catch(()=>({})); throw new Error(d.error||'errore di salvataggio'); }
+  }catch(e){
+    showToast('⚠️ Impossibile salvare sul server condiviso al momento. Riprova tra poco.');
+  }
+}
+async function saveEvents(){ await saveAllState(); }
+async function saveCategories(){ await saveAllState(); }
+async function saveDocuments(){ await saveAllState(); }
+
 
 function showToast(msg){
   const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
