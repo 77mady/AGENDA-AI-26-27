@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Agenda AI</title>
+<style>
+:root{
+  --paper:#F3EFE4; --paper-2:#EAE3D2; --card:#FBF9F3;
+  --ink:#22283B; --ink-soft:#5A6178; --ink-faint:#8A8F9E;
+  --accent:#7A3B69; --accent-soft:#EEDFE9; --accent-dark:#5E2C50;
+  --sage:#5F7A5D; --sage-soft:#DFE8DC;
+  --amber:#A9762E; --amber-soft:#F1E3C8;
+  --rose:#AE463C; --rose-soft:#F3DCDA;
+  --line:#D9D0B9;
+  --font-display: Georgia, 'Iowan Old Style', 'Palatino Linotype', serif;
+  --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font-body);}
+#app{display:flex;min-height:100vh;}
+
+/* Sidebar */
+.sidebar{width:220px;flex:0 0 220px;background:var(--paper-2);border-right:1px solid var(--line);padding:22px 16px;display:flex;flex-direction:column;gap:22px;}
+.brand{font-family:var(--font-display);font-size:22px;font-style:italic;color:var(--accent-dark);position:relative;padding-bottom:8px;}
+.brand::after{content:"";position:absolute;left:0;bottom:0;width:46px;height:3px;background:var(--accent);border-radius:2px;}
+.brand small{display:block;font-family:var(--font-body);font-style:normal;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);margin-top:2px;}
+.nav{display:flex;flex-direction:column;gap:2px;}
+.nav button{all:unset;cursor:pointer;padding:9px 10px;border-radius:8px;font-size:14px;color:var(--ink-soft);display:flex;align-items:center;gap:9px;}
+.nav button:hover{background:var(--accent-soft);color:var(--accent-dark);}
+.nav button.active{background:var(--accent);color:#fff;}
+.side-actions{margin-top:auto;display:flex;flex-direction:column;gap:8px;}
+.btn{all:unset;cursor:pointer;text-align:center;padding:10px 12px;border-radius:9px;font-size:13.5px;font-weight:600;}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-primary:hover{background:var(--accent-dark);}
+.btn-outline{border:1px solid var(--accent);color:var(--accent-dark);}
+.btn-outline:hover{background:var(--accent-soft);}
+.btn-ghost{color:var(--ink-soft);}
+.btn-ghost:hover{color:var(--ink);}
+.btn-sm{padding:5px 9px;font-size:12px;border-radius:7px;}
+.btn-danger{color:var(--rose);}
+.btn-danger:hover{background:var(--rose-soft);}
+
+/* Main */
+.main{flex:1;padding:26px 34px;max-width:1100px;}
+.topbar{display:flex;gap:12px;align-items:center;margin-bottom:22px;}
+.searchbar{flex:1;position:relative;}
+.searchbar input{width:100%;padding:11px 14px 11px 38px;border-radius:10px;border:1px solid var(--line);background:var(--card);font-size:14px;font-family:var(--font-body);}
+.searchbar input:focus{outline:2px solid var(--accent-soft);border-color:var(--accent);}
+.searchbar::before{content:"🔎";position:absolute;left:12px;top:9px;font-size:14px;}
+h1{font-family:var(--font-display);font-weight:400;font-size:26px;margin:0 0 4px;}
+.subtle{color:var(--ink-faint);font-size:13px;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;}
+.section-title{font-family:var(--font-display);font-size:16px;margin:0 0 10px;color:var(--accent-dark);}
+
+/* Dashboard */
+.dash-grid{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;margin-top:18px;}
+.big-import{grid-column:1/-1;background:linear-gradient(135deg,var(--accent-soft),var(--paper-2));border:1.5px dashed var(--accent);border-radius:14px;padding:26px;text-align:center;cursor:pointer;}
+.big-import:hover{background:var(--accent-soft);}
+.big-import .icon{font-size:30px;}
+.big-import h3{font-family:var(--font-display);margin:8px 0 4px;font-size:19px;}
+.event-row{display:flex;gap:12px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--line);}
+.event-row:last-child{border-bottom:none;}
+.time-tab{font-family:var(--font-mono);font-size:12.5px;color:var(--accent-dark);background:var(--accent-soft);border-radius:6px;padding:3px 7px;white-space:nowrap;min-width:76px;text-align:center;}
+.ev-title{font-weight:600;font-size:14px;}
+.ev-meta{font-size:12px;color:var(--ink-faint);}
+.cat-pill{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:2px 8px;border-radius:20px;background:var(--sage-soft);color:var(--sage);font-weight:600;}
+.empty{color:var(--ink-faint);font-size:13px;font-style:italic;padding:8px 0;}
+
+/* Calendar */
+.view-switch{display:flex;gap:4px;background:var(--paper-2);padding:3px;border-radius:9px;}
+.view-switch button{all:unset;cursor:pointer;padding:6px 12px;border-radius:7px;font-size:13px;color:var(--ink-soft);}
+.view-switch button.active{background:var(--card);color:var(--accent-dark);font-weight:600;}
+.cal-nav{display:flex;align-items:center;gap:10px;margin:14px 0;}
+.cal-nav button{all:unset;cursor:pointer;font-size:16px;padding:4px 9px;border-radius:7px;}
+.cal-nav button:hover{background:var(--paper-2);}
+.cal-nav .label{font-family:var(--font-display);font-size:18px;}
+.month-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
+.month-cell{background:var(--card);border:1px solid var(--line);border-radius:9px;min-height:88px;padding:6px;font-size:11px;position:relative;}
+.month-cell.today{border-color:var(--accent);}
+.month-cell .num{font-weight:700;font-size:12px;color:var(--ink-soft);}
+.month-chip{margin-top:3px;background:var(--accent-soft);color:var(--accent-dark);border-radius:5px;padding:1px 5px;font-size:10.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;}
+.week-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;}
+.week-col{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px;min-height:160px;}
+.week-col .dow{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-faint);}
+.week-col .dnum{font-family:var(--font-display);font-size:18px;margin-bottom:6px;}
+.list-toolbar{display:flex;gap:10px;margin-bottom:12px;}
+.list-toolbar select,.list-toolbar input{padding:7px 10px;border-radius:8px;border:1px solid var(--line);font-family:var(--font-body);font-size:13px;background:var(--card);}
+
+/* Modal */
+.overlay{position:fixed;inset:0;background:rgba(34,40,59,.42);display:flex;align-items:center;justify-content:center;z-index:50;}
+.modal{background:var(--card);border-radius:14px;padding:22px 24px;width:520px;max-width:92vw;max-height:86vh;overflow:auto;}
+.modal h2{font-family:var(--font-display);font-weight:400;margin-top:0;}
+.field{margin-bottom:12px;}
+.field label{display:block;font-size:12px;color:var(--ink-soft);margin-bottom:4px;font-weight:600;}
+.field input,.field select,.field textarea{width:100%;padding:9px 10px;border-radius:8px;border:1px solid var(--line);font-family:var(--font-body);font-size:13.5px;background:#fff;}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;}
+
+/* Review cards */
+.review-card{border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:#fff;}
+.review-card.low-conf{border-left-color:var(--rose);}
+.review-card.mid-conf{border-left-color:var(--amber);}
+.review-head{display:flex;justify-content:space-between;align-items:center;}
+.conf-badge{font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;}
+.conf-alta{background:var(--sage-soft);color:var(--sage);}
+.conf-media{background:var(--amber-soft);color:var(--amber);}
+.conf-bassa{background:var(--rose-soft);color:var(--rose);}
+.review-body{font-size:13px;color:var(--ink-soft);margin:6px 0;line-height:1.6;}
+.review-actions{display:flex;gap:6px;margin-top:6px;}
+.warn-note{font-size:12px;color:var(--amber);margin-top:4px;}
+
+/* Assistant panel */
+.assistant-panel{position:fixed;right:0;top:0;bottom:0;width:340px;background:var(--card);border-left:1px solid var(--line);z-index:40;display:flex;flex-direction:column;padding:16px;transform:translateX(100%);transition:transform .25s;}
+.assistant-panel.open{transform:translateX(0);}
+.chat-log{flex:1;overflow:auto;display:flex;flex-direction:column;gap:8px;margin:10px 0;}
+.msg{padding:8px 11px;border-radius:10px;font-size:13px;max-width:88%;}
+.msg.user{align-self:flex-end;background:var(--accent-soft);color:var(--accent-dark);}
+.msg.ai{align-self:flex-start;background:var(--paper-2);}
+.chat-input{display:flex;gap:6px;}
+.chat-input input{flex:1;padding:9px;border-radius:8px;border:1px solid var(--line);}
+.dropzone{border:2px dashed var(--accent);border-radius:12px;padding:30px;text-align:center;background:var(--accent-soft);}
+.dropzone.drag{background:var(--accent);color:#fff;}
+.file-chip{display:inline-flex;align-items:center;gap:6px;background:var(--paper-2);padding:6px 10px;border-radius:8px;font-size:12px;margin:4px 4px 0 0;}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:9px;font-size:13px;z-index:100;opacity:0;transition:opacity .2s;}
+.toast.show{opacity:1;}
+.spinner{width:16px;height:16px;border:2px solid var(--accent-soft);border-top-color:var(--accent);border-radius:50%;display:inline-block;animation:spin .7s linear infinite;vertical-align:-3px;margin-right:6px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.icon-btn{all:unset;cursor:pointer;font-size:18px;padding:6px 8px;border-radius:8px;}
+.icon-btn:hover{background:var(--paper-2);}
+@media (max-width:800px){
+  #app{flex-direction:column;}
+  .sidebar{width:100%;flex:none;flex-direction:row;flex-wrap:wrap;padding:12px;}
+  .nav{flex-direction:row;flex-wrap:wrap;}
+  .side-actions{flex-direction:row;margin-top:0;}
+  .main{padding:16px;}
+  .dash-grid,.week-grid,.month-grid,.row2{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="sidebar">
+    <div class="brand">Agenda AI<small>per la scuola e non solo</small></div>
+    <div class="nav" id="nav">
+      <button data-view="dashboard" class="active">🏠 Dashboard</button>
+      <button data-view="day">📅 Giorno</button>
+      <button data-view="week">🗓️ Settimana</button>
+      <button data-view="month">📆 Mese</button>
+      <button data-view="list">📋 Elenco</button>
+      <button data-view="settings">⚙️ Impostazioni</button>
+    </div>
+    <div class="side-actions">
+      <button class="btn btn-primary" onclick="openEventModal()">＋ Nuovo evento</button>
+      <button class="btn btn-outline" onclick="openImport()">📎 Importa documento</button>
+      <button class="btn btn-ghost" onclick="toggleAssistant()">💬 Assistente</button>
+    </div>
+  </div>
+  <div class="main">
+    <div class="topbar">
+      <div class="searchbar"><input id="searchInput" placeholder="Chiedi in linguaggio naturale: 'cosa ho questa settimana?'" onkeydown="if(event.key==='Enter')runSearch()"></div>
+    </div>
+    <div id="viewRoot"></div>
+  </div>
+</div>
+
+<div id="modalRoot"></div>
+<div class="assistant-panel" id="assistantPanel">
+  <div style="display:flex;justify-content:space-between;align-items:center;">
+    <strong style="font-family:var(--font-display);font-size:17px;">Assistente Agenda</strong>
+    <button class="icon-btn" onclick="toggleAssistant()">✕</button>
+  </div>
+  <div class="chat-log" id="chatLog"></div>
+  <div class="chat-input">
+    <input id="chatInput" placeholder="Scrivi un messaggio..." onkeydown="if(event.key==='Enter')sendChat()">
+    <button class="btn btn-primary btn-sm" onclick="sendChat()">Invia</button>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+/* ---------- State & storage ---------- */
+const DEFAULT_CATEGORIES = [
+  {id:'scuola',nome:'Scuola',icona:'🏫',colore:'#5F7A5D'},
+  {id:'riunioni',nome:'Riunioni e collegi',icona:'👨‍🏫',colore:'#7A3B69'},
+  {id:'formazione',nome:'Formazione',icona:'📚',colore:'#A9762E'},
+  {id:'scadenze',nome:'Scadenze',icona:'📝',colore:'#AE463C'},
+  {id:'personale',nome:'Personale',icona:'👤',colore:'#3E6E8E'},
+  {id:'lavoro',nome:'Lavoro',icona:'💼',colore:'#5A6178'},
+  {id:'casa',nome:'Casa',icona:'🏠',colore:'#7C8A4B'},
+  {id:'appuntamenti',nome:'Appuntamenti',icona:'🩺',colore:'#B4527A'},
+  {id:'altro',nome:'Altro',icona:'🎯',colore:'#8A8F9E'},
+];
+let state = { events: [], categories: DEFAULT_CATEGORIES, documents: [] };
+let currentView = 'dashboard';
+let calDate = new Date();
+let pendingReview = null; // {events:[], sourceDoc}
+
+async function loadState(){
+  try{ const ev = localStorage.getItem('agenda_events'); if(ev) state.events = JSON.parse(ev); }catch(e){}
+  try{ const cat = localStorage.getItem('agenda_categories'); if(cat) state.categories = JSON.parse(cat); }catch(e){}
+  try{ const docs = localStorage.getItem('agenda_documents'); if(docs) state.documents = JSON.parse(docs); }catch(e){}
+}
+async function saveEvents(){ try{ localStorage.setItem('agenda_events', JSON.stringify(state.events)); }catch(e){ showToast('Impossibile salvare al momento.'); } }
+async function saveCategories(){ try{ localStorage.setItem('agenda_categories', JSON.stringify(state.categories)); }catch(e){} }
+async function saveDocuments(){ try{ localStorage.setItem('agenda_documents', JSON.stringify(state.documents)); }catch(e){} }
+
+function showToast(msg){
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2600);
+}
+function uid(){ return 'e'+Math.random().toString(36).slice(2,10); }
+function catInfo(id){ return state.categories.find(c=>c.id===id) || state.categories.find(c=>c.id==='altro'); }
+function pad(n){ return String(n).padStart(2,'0'); }
+function isoDate(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+function todayIso(){ return isoDate(new Date()); }
+function parseISO(s){ const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); }
+
+/* ---------- Recurrence expansion ---------- */
+function occursOn(ev, dateIso){
+  if(!ev.ricorrenza || ev.ricorrenza.frequenza==='nessuna' || !ev.ricorrenza.frequenza) return dateIso===ev.data_inizio;
+  const start = parseISO(ev.data_inizio); const check = parseISO(dateIso);
+  if(check < start) return false;
+  if(ev.ricorrenza.fino && dateIso > ev.ricorrenza.fino) return false;
+  const diffDays = Math.round((check-start)/86400000);
+  switch(ev.ricorrenza.frequenza){
+    case 'giornaliera': return diffDays % (ev.ricorrenza.intervallo||1) === 0;
+    case 'settimanale': return diffDays % (7*(ev.ricorrenza.intervallo||1)) === 0;
+    case 'mensile': return start.getDate()===check.getDate();
+    case 'annuale': return start.getDate()===check.getDate() && start.getMonth()===check.getMonth();
+    default: return dateIso===ev.data_inizio;
+  }
+}
+function eventsOnDate(dateIso){
+  return state.events.filter(e=>e.stato!=='annullato' && occursOn(e,dateIso))
+    .sort((a,b)=>(a.ora_inizio||'').localeCompare(b.ora_inizio||''));
+}
+function upcomingEvents(limit){
+  const today = todayIso();
+  return state.events.filter(e=>e.stato!=='annullato' && e.data_inizio>=today)
+    .sort((a,b)=> (a.data_inizio+ (a.ora_inizio||'')).localeCompare(b.data_inizio+(b.ora_inizio||'')))
+    .slice(0,limit);
+}
+function upcomingDeadlines(limit){
+  const today = todayIso();
+  return state.events.filter(e=>e.stato!=='annullato' && e.scadenza && e.data_inizio>=today)
+    .sort((a,b)=>a.data_inizio.localeCompare(b.data_inizio)).slice(0,limit);
+}
+
+/* ---------- Rendering: navigation ---------- */
+document.getElementById('nav').addEventListener('click',e=>{
+  const btn=e.target.closest('button'); if(!btn) return;
+  document.querySelectorAll('#nav button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  currentView=btn.dataset.view;
+  render();
+});
+
+function render(){
+  const root=document.getElementById('viewRoot');
+  if(currentView==='dashboard') return renderDashboard(root);
+  if(currentView==='day') return renderDay(root);
+  if(currentView==='week') return renderWeek(root);
+  if(currentView==='month') return renderMonth(root);
+  if(currentView==='list') return renderList(root);
+  if(currentView==='settings') return renderSettings(root);
+}
+
+function eventRowHtml(e){
+  const c=catInfo(e.categoria);
+  const time = e.ora_inizio ? (e.ora_inizio+(e.ora_fine?(' – '+e.ora_fine):'')) : (e.scadenza?'Scadenza':'Tutto il giorno');
+  return `<div class="event-row">
+    <div class="time-tab">${time}</div>
+    <div style="flex:1">
+      <div class="ev-title">${escapeHtml(e.titolo)}</div>
+      <div class="ev-meta">${e.luogo?('📍 '+escapeHtml(e.luogo)+' · '):''}<span class="cat-pill">${c.icona} ${c.nome}</span></div>
+    </div>
+    <button class="icon-btn" title="Modifica" onclick="openEventModal('${e.id}')">✏️</button>
+  </div>`;
+}
+function escapeHtml(s){ return (s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+function renderDashboard(root){
+  const today = todayIso();
+  const todays = eventsOnDate(today);
+  const next = upcomingEvents(1)[0];
+  const deadlines = upcomingDeadlines(5);
+  const dnow = new Date();
+  const giorno = dnow.toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long'});
+  root.innerHTML = `
+  <h1>Buongiorno!</h1>
+  <div class="subtle" style="text-transform:capitalize">${giorno}</div>
+  <div class="dash-grid">
+    <div class="big-import" onclick="openImport()">
+      <div class="icon">📎</div>
+      <h3>Importa documento</h3>
+      <div class="subtle">Carica un documento e lascia che l'IA trovi automaticamente i tuoi impegni.</div>
+    </div>
+    <div class="card">
+      <div class="section-title">📅 Oggi</div>
+      ${todays.length? todays.map(eventRowHtml).join('') : '<div class="empty">Nessun impegno per oggi.</div>'}
+    </div>
+    <div class="card">
+      <div class="section-title">⏰ Prossimo impegno</div>
+      ${next? eventRowHtml(next) : '<div class="empty">Nessun impegno imminente.</div>'}
+      <div class="section-title" style="margin-top:16px;">🔔 Prossime scadenze</div>
+      ${deadlines.length? deadlines.map(d=>`<div class="event-row"><div class="time-tab">${d.data_inizio.split('-').reverse().join('/')}</div><div style="flex:1"><div class="ev-title">${escapeHtml(d.titolo)}</div></div></div>`).join('') : '<div class="empty">Nessuna scadenza in vista.</div>'}
+    </div>
+  </div>`;
+}
+
+function renderDay(root){
+  const iso = isoDate(calDate);
+  const evs = eventsOnDate(iso);
+  root.innerHTML = `
+  <div class="cal-nav">
+    <button onclick="shiftDay(-1)">←</button>
+    <div class="label" style="text-transform:capitalize">${calDate.toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</div>
+    <button onclick="shiftDay(1)">→</button>
+    <button class="btn btn-ghost btn-sm" onclick="calDate=new Date();render()">Oggi</button>
+  </div>
+  <div class="card">${evs.length? evs.map(eventRowHtml).join('') : '<div class="empty">Nessun impegno in questo giorno.</div>'}</div>`;
+}
+function shiftDay(n){ calDate = new Date(calDate); calDate.setDate(calDate.getDate()+n); render(); }
+
+function startOfWeek(d){ const x=new Date(d); const day=(x.getDay()+6)%7; x.setDate(x.getDate()-day); return x; }
+const WEEK_HOURS = Array.from({length:14},(_,i)=>7+i); // 07:00 - 20:00
+function renderWeek(root){
+  const start = startOfWeek(calDate);
+  const days = Array.from({length:7},(_,i)=>{ const d=new Date(start); d.setDate(start.getDate()+i); return d; });
+
+  // Header row
+  let headCells = `<div></div>` + days.map(d=>{
+    const iso=isoDate(d);
+    return `<div style="text-align:center;${iso===todayIso()?'color:var(--accent-dark);font-weight:700;':''}">
+      <div class="dow">${d.toLocaleDateString('it-IT',{weekday:'short'})}</div>
+      <div class="dnum" style="font-size:16px;">${d.getDate()}</div>
+    </div>`;
+  }).join('');
+
+  // Untimed events (all-day / no ora_inizio) shown as chips under header
+  let allDayRow = `<div class="subtle" style="font-size:11px;padding-top:4px;">Tutto il giorno</div>` + days.map(d=>{
+    const iso=isoDate(d);
+    const evs = eventsOnDate(iso).filter(e=>!e.ora_inizio);
+    return `<div>${evs.map(e=>`<div class="month-chip" style="margin-bottom:2px;" onclick="openEventModal('${e.id}')">${escapeHtml(e.titolo)}</div>`).join('')}</div>`;
+  }).join('');
+
+  // Hourly grid
+  let hourRows = WEEK_HOURS.map(h=>{
+    const label = `<div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-faint);text-align:right;padding-right:6px;">${pad(h)}:00</div>`;
+    const cells = days.map(d=>{
+      const iso=isoDate(d);
+      const evs = eventsOnDate(iso).filter(e=>e.ora_inizio && parseInt(e.ora_inizio.split(':')[0],10)===h);
+      return `<div style="border-top:1px solid var(--line);min-height:34px;padding:2px;">
+        ${evs.map(e=>`<div class="month-chip" style="white-space:normal;" onclick="openEventModal('${e.id}')">${e.ora_inizio} ${escapeHtml(e.titolo)}</div>`).join('')}
+      </div>`;
+    }).join('');
+    return `<div style="display:grid;grid-template-columns:52px repeat(7,1fr);gap:4px;">${label}${cells}</div>`;
+  }).join('');
+
+  const end=new Date(start); end.setDate(start.getDate()+6);
+  root.innerHTML = `
+  <div class="cal-nav">
+    <button onclick="shiftWeek(-1)">←</button>
+    <div class="label">${start.toLocaleDateString('it-IT',{day:'numeric',month:'short'})} – ${end.toLocaleDateString('it-IT',{day:'numeric',month:'short',year:'numeric'})}</div>
+    <button onclick="shiftWeek(1)">→</button>
+    <button class="btn btn-ghost btn-sm" onclick="calDate=new Date();render()">Oggi</button>
+  </div>
+  <div class="card" style="overflow-x:auto;">
+    <div style="min-width:640px;">
+      <div style="display:grid;grid-template-columns:52px repeat(7,1fr);gap:4px;margin-bottom:4px;">${headCells}</div>
+      <div style="display:grid;grid-template-columns:52px repeat(7,1fr);gap:4px;margin-bottom:8px;">${allDayRow}</div>
+      ${hourRows}
+    </div>
+  </div>`;
+}
+function shiftWeek(n){ calDate=new Date(calDate); calDate.setDate(calDate.getDate()+7*n); render(); }
+
+function renderMonth(root){
+  const y=calDate.getFullYear(), m=calDate.getMonth();
+  const first=new Date(y,m,1); const startOffset=(first.getDay()+6)%7;
+  const daysInMonth=new Date(y,m+1,0).getDate();
+  let cells='';
+  const dowNames=['Lun','Mar','Mer','Gio','Ven','Sab','Dom'];
+  let head=dowNames.map(d=>`<div style="text-align:center;font-size:11px;color:var(--ink-faint);font-weight:600;">${d}</div>`).join('');
+  for(let i=0;i<startOffset;i++) cells+='<div></div>';
+  for(let day=1;day<=daysInMonth;day++){
+    const d=new Date(y,m,day); const iso=isoDate(d); const evs=eventsOnDate(iso);
+    cells+=`<div class="month-cell ${iso===todayIso()?'today':''}">
+      <div class="num">${day}</div>
+      ${evs.slice(0,3).map(e=>`<div class="month-chip" onclick="openEventModal('${e.id}')">${escapeHtml(e.titolo)}</div>`).join('')}
+      ${evs.length>3?`<div class="subtle" style="font-size:10px;">+${evs.length-3} altri</div>`:''}
+    </div>`;
+  }
+  root.innerHTML = `
+  <div class="cal-nav">
+    <button onclick="shiftMonth(-1)">←</button>
+    <div class="label" style="text-transform:capitalize">${calDate.toLocaleDateString('it-IT',{month:'long',year:'numeric'})}</div>
+    <button onclick="shiftMonth(1)">→</button>
+    <button class="btn btn-ghost btn-sm" onclick="calDate=new Date();render()">Oggi</button>
+  </div>
+  <div class="month-grid" style="margin-bottom:4px;">${head}</div>
+  <div class="month-grid">${cells}</div>`;
+}
+function shiftMonth(n){ calDate=new Date(calDate.getFullYear(),calDate.getMonth()+n,1); render(); }
+
+function renderList(root){
+  const catOpts = state.categories.map(c=>`<option value="${c.id}">${c.icona} ${c.nome}</option>`).join('');
+  root.innerHTML = `
+  <h1>Elenco eventi</h1>
+  <div class="list-toolbar">
+    <input id="listSearch" placeholder="Cerca per titolo o luogo..." oninput="renderListItems()">
+    <select id="listCat" onchange="renderListItems()"><option value="">Tutte le categorie</option>${catOpts}</select>
+    <select id="listSort" onchange="renderListItems()"><option value="asc">Data crescente</option><option value="desc">Data decrescente</option></select>
+  </div>
+  <div class="card" id="listItems"></div>`;
+  renderListItems();
+}
+function renderListItems(){
+  const q=(document.getElementById('listSearch')?.value||'').toLowerCase();
+  const cat=document.getElementById('listCat')?.value||'';
+  const sort=document.getElementById('listSort')?.value||'asc';
+  let evs=state.events.filter(e=>e.stato!=='annullato');
+  if(q) evs=evs.filter(e=>(e.titolo||'').toLowerCase().includes(q)||(e.luogo||'').toLowerCase().includes(q));
+  if(cat) evs=evs.filter(e=>e.categoria===cat);
+  evs.sort((a,b)=> sort==='asc' ? a.data_inizio.localeCompare(b.data_inizio) : b.data_inizio.localeCompare(a.data_inizio));
+  const el=document.getElementById('listItems');
+  el.innerHTML = evs.length? evs.map(e=>`
+    <div class="event-row">
+      <div class="time-tab">${e.data_inizio.split('-').reverse().join('/')}${e.ora_inizio?('<br>'+e.ora_inizio):''}</div>
+      <div style="flex:1">
+        <div class="ev-title">${escapeHtml(e.titolo)}</div>
+        <div class="ev-meta">${e.luogo?('📍 '+escapeHtml(e.luogo)+' · '):''}<span class="cat-pill">${catInfo(e.categoria).icona} ${catInfo(e.categoria).nome}</span>${e.documento_origine?' · 📎 '+escapeHtml(e.documento_origine):''}</div>
+      </div>
+      <button class="icon-btn" onclick="openEventModal('${e.id}')">✏️</button>
+      <button class="icon-btn" onclick="deleteEvent('${e.id}')">🗑️</button>
+    </div>`).join('') : '<div class="empty">Nessun evento trovato.</div>';
+}
+/* ---------- Conferma personalizzata (sostituisce confirm() nativo, non affidabile in alcuni contesti) ---------- */
+function askConfirm(message, onYes){
+  document.getElementById('modalRoot').innerHTML += `
+  <div class="overlay" style="z-index:80;" id="confirmOverlay">
+    <div class="modal" style="width:380px;">
+      <p style="margin-top:0;">${escapeHtml(message)}</p>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="document.getElementById('confirmOverlay').remove()">Annulla</button>
+        <button class="btn btn-danger" id="confirmYesBtn">Conferma</button>
+      </div>
+    </div>
+  </div>`;
+  document.getElementById('confirmYesBtn').onclick = ()=>{
+    document.getElementById('confirmOverlay').remove();
+    onYes();
+  };
+}
+function askChoice(message, yesLabel, noLabel, onYes, onNo){
+  document.getElementById('modalRoot').innerHTML += `
+  <div class="overlay" style="z-index:80;" id="choiceOverlay">
+    <div class="modal" style="width:420px;">
+      <p style="margin-top:0;white-space:pre-line;">${escapeHtml(message)}</p>
+      <div class="modal-actions">
+        <button class="btn btn-outline" id="choiceNoBtn">${escapeHtml(noLabel)}</button>
+        <button class="btn btn-primary" id="choiceYesBtn">${escapeHtml(yesLabel)}</button>
+      </div>
+    </div>
+  </div>`;
+  document.getElementById('choiceYesBtn').onclick = ()=>{ document.getElementById('choiceOverlay').remove(); onYes(); };
+  document.getElementById('choiceNoBtn').onclick = ()=>{ document.getElementById('choiceOverlay').remove(); if(onNo) onNo(); };
+}
+
+function deleteEvent(id){
+  askConfirm('Eliminare definitivamente questo evento?', ()=>{
+    state.events = state.events.filter(e=>e.id!==id);
+    saveEvents(); closeModal(); render(); showToast('Evento eliminato.');
+  });
+}
+
+function renderSettings(root){
+  const catRows = state.categories.map(c=>`<div class="event-row"><div style="width:30px">${c.icona}</div><div style="flex:1">${escapeHtml(c.nome)}</div><button class="icon-btn" onclick="removeCategory('${c.id}')">🗑️</button></div>`).join('');
+  root.innerHTML=`
+  <h1>Impostazioni</h1>
+  <div class="card" style="margin-bottom:16px;">
+    <div class="section-title">Categorie</div>
+    ${catRows}
+    <div style="display:flex;gap:6px;margin-top:10px;">
+      <input id="newCatIcon" placeholder="Icona (es. 🎨)" style="width:90px;padding:8px;border-radius:8px;border:1px solid var(--line);">
+      <input id="newCatName" placeholder="Nome nuova categoria" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--line);">
+      <button class="btn btn-outline btn-sm" onclick="addCategory()">Aggiungi</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="section-title">Privacy e dati</div>
+    <p class="subtle">I documenti che carichi vengono inviati solo al modello di IA per estrarre gli eventi e non vengono condivisi con altri. Il testo estratto dai documenti collegati agli eventi resta salvato nel tuo account finché non lo elimini tu. Puoi eliminare in ogni momento singoli eventi, il collegamento a un documento, o tutti i tuoi dati.</p>
+    <button class="btn btn-danger btn-sm" onclick="wipeAll()">Elimina tutti i dati dell'agenda</button>
+  </div>`;
+}
+function addCategory(){
+  const icon=document.getElementById('newCatIcon').value.trim()||'🎯';
+  const name=document.getElementById('newCatName').value.trim();
+  if(!name) return;
+  state.categories.push({id:uid(),nome:name,icona:icon,colore:'#8A8F9E'});
+  saveCategories(); renderSettings(document.getElementById('viewRoot'));
+}
+function removeCategory(id){
+  if(state.categories.length<=1) return;
+  state.categories=state.categories.filter(c=>c.id!==id);
+  saveCategories(); renderSettings(document.getElementById('viewRoot'));
+}
+async function wipeAll(){
+  askConfirm('Questa operazione eliminerà tutti gli eventi e i documenti collegati. Continuare?', async ()=>{
+    state.events=[]; state.documents=[]; state.categories=DEFAULT_CATEGORIES.slice();
+    await saveEvents(); await saveDocuments(); await saveCategories();
+    render(); showToast('Tutti i dati sono stati eliminati.');
+  });
+}
+
+/* ---------- Event modal (manual add/edit) ---------- */
+function openEventModal(id){
+  const ev = id ? state.events.find(e=>e.id===id) : null;
+  const catOpts = state.categories.map(c=>`<option value="${c.id}" ${ev&&ev.categoria===c.id?'selected':''}>${c.icona} ${c.nome}</option>`).join('');
+  const recFreq = ev?.ricorrenza?.frequenza || 'nessuna';
+  document.getElementById('modalRoot').innerHTML = `
+  <div class="overlay" onclick="if(event.target===this) closeModal()">
+    <div class="modal">
+      <h2>${ev?'Modifica evento':'Nuovo evento'}</h2>
+      <div class="field"><label>Titolo</label><input id="f_titolo" value="${escapeHtml(ev?.titolo||'')}"></div>
+      <div class="row2">
+        <div class="field"><label>Data inizio</label><input type="date" id="f_data" value="${ev?.data_inizio||todayIso()}"></div>
+        <div class="field"><label>Data fine (opzionale)</label><input type="date" id="f_datafine" value="${ev?.data_fine||''}"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Ora inizio</label><input type="time" id="f_orainizio" value="${ev?.ora_inizio||''}"></div>
+        <div class="field"><label>Ora fine</label><input type="time" id="f_orafine" value="${ev?.ora_fine||''}"></div>
+      </div>
+      <div class="field"><label>Categoria</label><select id="f_categoria">${catOpts}</select></div>
+      <div class="field"><label>Luogo</label><input id="f_luogo" value="${escapeHtml(ev?.luogo||'')}"></div>
+      <div class="field"><label>Persone coinvolte</label><input id="f_persone" value="${escapeHtml(ev?.persone_coinvolte||'')}"></div>
+      <div class="field"><label>Descrizione</label><textarea id="f_descrizione" rows="2">${escapeHtml(ev?.descrizione||'')}</textarea></div>
+      <div class="row2">
+        <div class="field"><label>È una scadenza?</label><select id="f_scadenza"><option value="no" ${!ev?.scadenza?'selected':''}>No</option><option value="si" ${ev?.scadenza?'selected':''}>Sì</option></select></div>
+        <div class="field"><label>Promemoria</label><select id="f_promemoria">
+          <option value="">Nessuno</option>
+          <option value="1h" ${ev?.promemoria==='1h'?'selected':''}>1 ora prima</option>
+          <option value="1g" ${ev?.promemoria==='1g'?'selected':''}>1 giorno prima</option>
+          <option value="2g" ${ev?.promemoria==='2g'?'selected':''}>2 giorni prima</option>
+          <option value="1s" ${ev?.promemoria==='1s'?'selected':''}>1 settimana prima</option>
+        </select></div>
+      </div>
+      <div class="field"><label>Ricorrenza</label><select id="f_ricorrenza">
+        <option value="nessuna" ${recFreq==='nessuna'?'selected':''}>Nessuna</option>
+        <option value="giornaliera" ${recFreq==='giornaliera'?'selected':''}>Ogni giorno</option>
+        <option value="settimanale" ${recFreq==='settimanale'?'selected':''}>Ogni settimana</option>
+        <option value="mensile" ${recFreq==='mensile'?'selected':''}>Ogni mese</option>
+        <option value="annuale" ${recFreq==='annuale'?'selected':''}>Ogni anno</option>
+      </select></div>
+      <div class="modal-actions">
+        ${ev?'<button class="btn btn-danger btn-sm" onclick="deleteEvent(\''+ev.id+'\')">Elimina</button>':''}
+        <button class="btn btn-ghost" onclick="closeModal()">Annulla</button>
+        <button class="btn btn-primary" onclick="saveEventFromModal('${ev?ev.id:''}')">Salva</button>
+      </div>
+    </div>
+  </div>`;
+}
+function closeModal(){ document.getElementById('modalRoot').innerHTML=''; }
+function saveEventFromModal(id){
+  const titolo=document.getElementById('f_titolo').value.trim();
+  if(!titolo){ showToast('Inserisci un titolo.'); return; }
+  const data={
+    id: id||uid(),
+    titolo,
+    data_inizio: document.getElementById('f_data').value || todayIso(),
+    data_fine: document.getElementById('f_datafine').value || null,
+    ora_inizio: document.getElementById('f_orainizio').value || null,
+    ora_fine: document.getElementById('f_orafine').value || null,
+    categoria: document.getElementById('f_categoria').value,
+    luogo: document.getElementById('f_luogo').value.trim(),
+    persone_coinvolte: document.getElementById('f_persone').value.trim(),
+    descrizione: document.getElementById('f_descrizione').value.trim(),
+    scadenza: document.getElementById('f_scadenza').value==='si',
+    priorita: 'normale',
+    promemoria: document.getElementById('f_promemoria').value,
+    ricorrenza: {frequenza: document.getElementById('f_ricorrenza').value, intervallo:1},
+    documento_origine: id ? (state.events.find(e=>e.id===id)?.documento_origine||null) : null,
+    stato: 'confermato',
+    data_creazione: id ? (state.events.find(e=>e.id===id)?.data_creazione||new Date().toISOString()) : new Date().toISOString(),
+  };
+  const idx=state.events.findIndex(e=>e.id===id);
+  if(idx>=0) state.events[idx]=data; else state.events.push(data);
+  saveEvents(); closeModal(); render(); showToast('Evento salvato.');
+}
+
+/* ---------- Import & AI extraction ---------- */
+function openImport(){
+  document.getElementById('modalRoot').innerHTML = `
+  <div class="overlay" onclick="if(event.target===this) closeModal()">
+    <div class="modal" style="width:480px;">
+      <h2>Importa documento</h2>
+      <div class="view-switch" style="margin-bottom:12px;">
+        <button id="tabFile" class="active" onclick="switchImportTab('file')">📎 Carica file</button>
+        <button id="tabText" onclick="switchImportTab('text')">📋 Incolla testo</button>
+      </div>
+      <div id="importFilePane">
+        <p class="subtle">Formati supportati: PDF, immagini (JPG/PNG, anche scansioni), Word (.docx), Excel (.xlsx), testo semplice (.txt).</p>
+        <div class="dropzone" id="dropzone">
+          <div style="font-size:26px;">📎</div>
+          <div>Trascina qui il file, oppure</div>
+          <input type="file" id="fileInput" style="margin-top:10px;" accept=".pdf,.png,.jpg,.jpeg,.docx,.xlsx,.txt">
+        </div>
+      </div>
+      <div id="importTextPane" style="display:none;">
+        <p class="subtle">Se il caricamento di un file non funziona, incolla qui direttamente il testo (es. copiato da un PDF, da una mail o da un sito).</p>
+        <textarea id="pasteText" rows="8" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);font-family:var(--font-body);font-size:13px;" placeholder="Incolla qui il testo da analizzare..."></textarea>
+        <button class="btn btn-primary" style="margin-top:10px;" onclick="handlePastedText()">Analizza testo</button>
+      </div>
+      <div id="importStatus" style="margin-top:10px;"></div>
+      <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Chiudi</button></div>
+    </div>
+  </div>`;
+  const dz=document.getElementById('dropzone');
+  dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag');});
+  dz.addEventListener('dragleave',()=>dz.classList.remove('drag'));
+  dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag');if(e.dataTransfer.files.length)handleFile(e.dataTransfer.files[0]);});
+  document.getElementById('fileInput').addEventListener('change',e=>{if(e.target.files.length)handleFile(e.target.files[0]);});
+}
+function switchImportTab(tab){
+  document.getElementById('tabFile').classList.toggle('active', tab==='file');
+  document.getElementById('tabText').classList.toggle('active', tab==='text');
+  document.getElementById('importFilePane').style.display = tab==='file' ? 'block':'none';
+  document.getElementById('importTextPane').style.display = tab==='text' ? 'block':'none';
+  document.getElementById('importStatus').innerHTML='';
+}
+async function handlePastedText(){
+  const text = document.getElementById('pasteText').value.trim();
+  const status=document.getElementById('importStatus');
+  if(!text){ status.innerHTML = `<div class="warn-note">Incolla del testo prima di analizzare.</div>`; return; }
+  await runExtraction([{type:'text', text: buildExtractionPrompt(text)}], text, 'Testo incollato');
+}
+
+function fileToBase64(file){
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=()=>res(r.result.split(',')[1]);
+    r.onerror=()=>rej(new Error('Lettura file fallita'));
+    r.readAsDataURL(file);
+  });
+}
+function fileToText(file){
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=()=>res(r.result);
+    r.onerror=()=>rej(new Error('Lettura file fallita'));
+    r.readAsText(file);
+  });
+}
+
+function buildExtractionPrompt(extractedTextForStorage){
+  const today = new Date().toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  const catList = state.categories.map(c=>c.id).join(', ');
+  return `Sei un assistente che legge documenti scolastici/personali italiani ed estrae eventi per un'agenda.
+Data odierna di riferimento: ${today}.
+${extractedTextForStorage ? ('Testo del documento da analizzare:\n"""\n'+extractedTextForStorage.slice(0,60000)+'\n"""') : 'Analizza il documento allegato.'}
+
+ISTRUZIONI IMPORTANTI:
+1. Individua e restituisci TUTTI gli eventi, appuntamenti e scadenze presenti nel documento, anche se sono molti (10, 20 o più). Non riassumere, non selezionarne solo alcuni, non fermarti a metà: se il documento contiene un elenco o una tabella, scorrilo fino alla fine.
+2. Presta particolare attenzione a ORARIO e SEDE/LUOGO, che vanno cercati con cura anche quando scritti in forma abbreviata o poco evidente: es. "ore 15:00", "h. 15:00-17:30", "dalle 9 alle 13", "alle 16", "presso l'Aula Magna", "in sede", "plesso di...", nomi di scuole, indirizzi, aule. Se un orario o un luogo compare una sola volta ma vale per più righe/eventi dello stesso blocco (es. tabella con un orario in testata), applicalo a tutti gli eventi di quel blocco.
+3. Per ciascun evento restituisci un oggetto con questi campi (usa null se l'informazione non è presente, NON inventare nulla):
+titolo, data_inizio (YYYY-MM-DD, risolvi le espressioni relative usando la data odierna), ora_inizio (HH:MM o null), ora_fine (HH:MM o null), luogo, categoria (una tra: ${catList}), persone_coinvolte, descrizione (MASSIMO 10 parole, sintetica), scadenza (true/false), priorita ("alta"/"normale"/"bassa"), ricorrenza (null oppure {"frequenza":"giornaliera|settimanale|mensile|annuale"}), affidabilita ("alta"/"media"/"bassa"), nota_incertezza (breve testo se ambiguo, altrimenti null).
+4. Se gli eventi sono molti, resta sintetico in ogni campo testuale per non superare lo spazio di risposta disponibile — ma non omettere eventi per questo motivo.
+
+Rispondi SOLO con un array JSON valido, senza testo aggiuntivo, senza markdown, senza backtick.`;
+}
+function tryRepairJsonArray(raw){
+  // Recupera gli oggetti completi da un array JSON troncato, chiudendolo correttamente.
+  let depth=0, lastGoodEnd=-1, inStr=false, esc=false;
+  for(let i=0;i<raw.length;i++){
+    const ch=raw[i];
+    if(inStr){
+      if(esc){ esc=false; }
+      else if(ch==='\\'){ esc=true; }
+      else if(ch==='"'){ inStr=false; }
+      continue;
+    }
+    if(ch==='"'){ inStr=true; continue; }
+    if(ch==='{'||ch==='['){ depth++; }
+    else if(ch==='}'||ch===']'){
+      depth--;
+      if(depth===1 && ch==='}'){ lastGoodEnd=i; }
+    }
+  }
+  if(lastGoodEnd===-1) return null;
+  try{ return JSON.parse(raw.slice(0,lastGoodEnd+1)+']'); }catch(e){ return null; }
+}
+
+async function runExtraction(messageContent, extractedTextForStorage, sourceName){
+  const status=document.getElementById('importStatus');
+  status.innerHTML = `<div class="subtle"><span class="spinner"></span>Analisi del contenuto con l'IA in corso...</div>`;
+  try{
+    const parts = messageContent.map(b=>{
+      if(b.type==='text') return {type:'text', text:b.text};
+      return {type:'inline_data', mime_type:b.source.media_type, data:b.source.data};
+    });
+    const res = await fetch('/api/generate',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({task:'extract', parts})
+    });
+    const data = await res.json();
+    if(data.error){ throw new Error(data.error); }
+    let raw = (data.text||'').trim();
+    raw = raw.replace(/```json/gi,'').replace(/```/g,'').trim();
+    const firstBracket = raw.indexOf('[');
+    if(firstBracket!==-1) raw = raw.slice(firstBracket);
+    const lastBracket = raw.lastIndexOf(']');
+    let events; let recovered=false;
+    if(lastBracket!==-1){
+      try{ events = JSON.parse(raw.slice(0, lastBracket+1)); }catch(e){ events=null; }
+    }
+    if(!events){
+      events = tryRepairJsonArray(raw);
+      if(events) recovered=true;
+    }
+    if(!events){ console.error('Risposta IA non interpretabile:', raw); throw new Error('la risposta dell\u2019IA non era in formato valido'); }
+    if(!Array.isArray(events) || events.length===0){
+      status.innerHTML = `<div class="warn-note">Non ho trovato eventi in questo contenuto. Puoi aggiungerli manualmente.</div>`;
+      return;
+    }
+    const docRecord = {id:uid(), nome:sourceName, testo:(extractedTextForStorage||'').slice(0,20000), data_caricamento:new Date().toISOString()};
+    state.documents.push(docRecord); await saveDocuments();
+    closeModal();
+    openReview(events, docRecord);
+    if(recovered) showToast('Il documento conteneva molti eventi: alcuni potrebbero non essere stati recuperati.');
+  }catch(err){
+    status.innerHTML = `<div class="warn-note">⚠️ Non sono riuscito ad analizzare il contenuto (${escapeHtml(err.message||'errore')}). Puoi inserire l'evento manualmente, oppure provare con "Incolla testo".</div>`;
+  }
+}
+
+async function handleFile(file){
+  const status=document.getElementById('importStatus');
+  status.innerHTML = `<div class="subtle"><span class="spinner"></span>Lettura del documento in corso...</div>`;
+  try{
+    const ext = file.name.split('.').pop().toLowerCase();
+    let messageContent = [];
+    let extractedTextForStorage = '';
+    if(ext==='pdf'){
+      const b64 = await fileToBase64(file);
+      messageContent.push({type:'document', source:{type:'base64', media_type:'application/pdf', data:b64}});
+      extractedTextForStorage = '';
+    } else if(['png','jpg','jpeg'].includes(ext)){
+      const b64 = await fileToBase64(file);
+      const mt = ext==='png' ? 'image/png' : 'image/jpeg';
+      messageContent.push({type:'image', source:{type:'base64', media_type:mt, data:b64}});
+      extractedTextForStorage = '';
+    } else if(ext==='docx'){
+      const buf = await file.arrayBuffer();
+      const result = await mammoth.extractRawText({arrayBuffer:buf});
+      extractedTextForStorage = result.value;
+    } else if(ext==='xlsx'){
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf,{type:'array'});
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      extractedTextForStorage = XLSX.utils.sheet_to_csv(sheet);
+    } else if(ext==='txt'){
+      extractedTextForStorage = await fileToText(file);
+    } else {
+      status.innerHTML = `<div class="warn-note">Formato non supportato.</div>`; return;
+    }
+    messageContent.push({type:'text', text: buildExtractionPrompt(extractedTextForStorage)});
+    await runExtraction(messageContent, extractedTextForStorage || ('[Documento: '+file.name+']'), file.name);
+  }catch(err){
+    status.innerHTML = `<div class="warn-note">⚠️ Non sono riuscito a leggere il file (${escapeHtml(err.message||'errore')}). Prova con "Incolla testo".</div>`;
+  }
+}
+
+/* ---------- Review screen ---------- */
+function openReview(events, docRecord){
+  pendingReview = { events: events.map(e=>({...e, _confirmed:false, _dismissed:false})), doc: docRecord };
+  renderReview();
+}
+function confAffid(a){ return a==='alta'?'conf-alta':(a==='media'?'conf-media':'conf-bassa'); }
+function confClass(a){ return a==='bassa'?'low-conf':(a==='media'?'mid-conf':''); }
+function renderReview(){
+  const list = pendingReview.events;
+  document.getElementById('modalRoot').innerHTML = `
+  <div class="overlay">
+    <div class="modal" style="width:560px;">
+      <h2>🔎 Eventi individuati</h2>
+      <p class="subtle">Abbiamo trovato ${list.filter(e=>!e._dismissed).length} possibile/i evento/i in "${escapeHtml(pendingReview.doc.nome)}". Controlla, modifica se serve, poi conferma.</p>
+      <div id="reviewCards">${list.map((e,i)=>reviewCardHtml(e,i)).join('')}</div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal()">Chiudi senza aggiungere</button>
+        <button class="btn btn-primary" onclick="confirmAllReview()">✓ Conferma e aggiungi all'agenda</button>
+      </div>
+    </div>
+  </div>`;
+}
+function reviewCardHtml(e,i){
+  if(e._dismissed) return '';
+  const dataFmt = e.data_inizio ? e.data_inizio.split('-').reverse().join('/') : '<span class="warn-note">data non individuata</span>';
+  return `<div class="review-card ${confClass(e.affidabilita)}">
+    <div class="review-head">
+      <strong>${escapeHtml(e.titolo||'(senza titolo)')}</strong>
+      <span class="conf-badge ${confAffid(e.affidabilita)}">${e.affidabilita==='alta'?'🟢 Alta affidabilità':e.affidabilita==='media'?'🟡 Da verificare':'🔴 Incerto'}</span>
+    </div>
+    <div class="review-body">
+      📅 ${dataFmt} ${e.ora_inizio?(' · ⏰ '+e.ora_inizio+(e.ora_fine?(' – '+e.ora_fine):'')):' · <span class="warn-note" style="display:inline">⏰ orario non trovato</span>'}<br>
+      ${e.luogo?('📍 '+escapeHtml(e.luogo)+'<br>'):'📍 <span class="warn-note" style="display:inline">luogo non trovato</span><br>'}
+      ${e.categoria?('🏷️ '+escapeHtml(catInfo(e.categoria).nome)+'<br>'):''}
+      ${e.scadenza?'📌 Scadenza<br>':''}
+    </div>
+    ${e.nota_incertezza?`<div class="warn-note">❓ ${escapeHtml(e.nota_incertezza)}</div>`:''}
+    <div class="review-actions">
+      <button class="btn btn-outline btn-sm" onclick="editReviewItem(${i})">✏️ Modifica</button>
+      <button class="btn btn-danger btn-sm" onclick="dismissReviewItem(${i})">🗑️ Elimina</button>
+      <button class="btn btn-primary btn-sm" onclick="confirmReviewItem(${i})">✓ Conferma evento</button>
+    </div>
+  </div>`;
+}
+function dismissReviewItem(i){ pendingReview.events[i]._dismissed=true; renderReview(); }
+function editReviewItem(i){
+  const e=pendingReview.events[i];
+  const catOpts = state.categories.map(c=>`<option value="${c.id}" ${e.categoria===c.id?'selected':''}>${c.icona} ${c.nome}</option>`).join('');
+  document.getElementById('modalRoot').innerHTML += `
+  <div class="overlay" style="z-index:60;" onclick="if(event.target===this)renderReview()">
+    <div class="modal">
+      <h2>Modifica evento estratto</h2>
+      <div class="field"><label>Titolo</label><input id="r_titolo" value="${escapeHtml(e.titolo||'')}"></div>
+      <div class="row2">
+        <div class="field"><label>Data</label><input type="date" id="r_data" value="${e.data_inizio||''}"></div>
+        <div class="field"><label>Categoria</label><select id="r_categoria">${catOpts}</select></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Ora inizio</label><input type="time" id="r_orainizio" value="${e.ora_inizio||''}"></div>
+        <div class="field"><label>Ora fine</label><input type="time" id="r_orafine" value="${e.ora_fine||''}"></div>
+      </div>
+      <div class="field"><label>Luogo</label><input id="r_luogo" value="${escapeHtml(e.luogo||'')}"></div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="renderReview()">Annulla</button>
+        <button class="btn btn-primary" onclick="saveReviewEdit(${i})">Salva modifiche</button>
+      </div>
+    </div>
+  </div>`;
+}
+function saveReviewEdit(i){
+  const e=pendingReview.events[i];
+  e.titolo=document.getElementById('r_titolo').value.trim();
+  e.data_inizio=document.getElementById('r_data').value;
+  e.categoria=document.getElementById('r_categoria').value;
+  e.ora_inizio=document.getElementById('r_orainizio').value||null;
+  e.ora_fine=document.getElementById('r_orafine').value||null;
+  e.luogo=document.getElementById('r_luogo').value.trim();
+  e.affidabilita='alta'; e.nota_incertezza=null;
+  renderReview();
+}
+function findDuplicate(e){
+  return state.events.find(x=>x.stato!=='annullato' && x.data_inizio===e.data_inizio &&
+    x.titolo && e.titolo && x.titolo.toLowerCase().trim()===e.titolo.toLowerCase().trim());
+}
+function commitReviewEvent(e, docRecord){
+  return new Promise(resolve=>{
+    const dup = findDuplicate(e);
+    const newEvent = {
+      id: uid(), titolo: e.titolo||'(senza titolo)', data_inizio: e.data_inizio||todayIso(),
+      data_fine: null, ora_inizio: e.ora_inizio||null, ora_fine: e.ora_fine||null,
+      categoria: e.categoria||'altro', luogo: e.luogo||'', persone_coinvolte: e.persone_coinvolte||'',
+      descrizione: e.descrizione||'', scadenza: !!e.scadenza, priorita: e.priorita||'normale',
+      promemoria:'', ricorrenza: e.ricorrenza||{frequenza:'nessuna'},
+      documento_origine: docRecord.nome, stato:'confermato', data_creazione: new Date().toISOString()
+    };
+    if(dup){
+      askChoice(
+        `⚠️ Potrebbe esistere già un evento simile ("${dup.titolo}" il ${dup.data_inizio}).\n\nScegli come procedere:`,
+        'Aggiorna esistente', 'Mantieni entrambi',
+        ()=>{ Object.assign(dup,newEvent,{id:dup.id}); resolve(); },
+        ()=>{ state.events.push(newEvent); resolve(); }
+      );
+    } else {
+      state.events.push(newEvent);
+      resolve();
+    }
+  });
+}
+async function confirmReviewItem(i){
+  await commitReviewEvent(pendingReview.events[i], pendingReview.doc);
+  pendingReview.events[i]._dismissed=true;
+  await saveEvents();
+  showToast("Evento aggiunto all'agenda.");
+  renderReview();
+  if(pendingReview.events.every(e=>e._dismissed)){ closeModal(); render(); }
+}
+async function confirmAllReview(){
+  const toAdd = pendingReview.events.filter(e=>!e._dismissed);
+  for(const e of toAdd){
+    await commitReviewEvent(e, pendingReview.doc);
+  }
+  await saveEvents();
+  closeModal(); render();
+  showToast("Eventi aggiunti all'agenda.");
+}
+
+/* ---------- Natural language search ---------- */
+async function runSearch(){
+  const q=document.getElementById('searchInput').value.trim();
+  if(!q) return;
+  showToast('Sto cercando...');
+  const compact = state.events.filter(e=>e.stato!=='annullato').map(e=>({t:e.titolo,d:e.data_inizio,o:e.ora_inizio,l:e.luogo,c:e.categoria,scad:e.scadenza}));
+  const today = new Date().toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  try{
+    const res = await fetch('/api/generate',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({task:'search', parts:[{type:'text', text:
+        `Data odierna: ${today}. Ecco gli eventi dell'agenda in JSON: ${JSON.stringify(compact)}. Domanda dell'utente: "${q}". Rispondi in italiano, in modo breve e discorsivo, elencando solo gli eventi pertinenti trovati nella lista (non inventarne altri). Se non trovi nulla di pertinente, dillo chiaramente.`}]})
+    });
+    const data = await res.json();
+    if(data.error) throw new Error(data.error);
+    showSearchResult(q, data.text||'Nessuna risposta.');
+  }catch(e){ showToast('Ricerca non riuscita.'); }
+}
+function showSearchResult(q,text){
+  document.getElementById('modalRoot').innerHTML = `
+  <div class="overlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal">
+      <h2>Risultati per: "${escapeHtml(q)}"</h2>
+      <div class="review-body" style="white-space:pre-wrap;">${escapeHtml(text)}</div>
+      <div class="modal-actions"><button class="btn btn-primary" onclick="closeModal()">Chiudi</button></div>
+    </div>
+  </div>`;
+}
+
+/* ---------- Assistant chat ---------- */
+let chatHistory = [];
+function toggleAssistant(){ document.getElementById('assistantPanel').classList.toggle('open'); }
+function pushChatMsg(role,text){
+  const log=document.getElementById('chatLog');
+  const div=document.createElement('div');
+  div.className='msg '+(role==='user'?'user':'ai');
+  div.textContent=text;
+  log.appendChild(div); log.scrollTop=log.scrollHeight;
+}
+async function sendChat(){
+  const input=document.getElementById('chatInput');
+  const msg=input.value.trim(); if(!msg) return;
+  input.value=''; pushChatMsg('user',msg);
+  chatHistory.push({role:'user',content:msg});
+  const compact = state.events.filter(e=>e.stato!=='annullato').map(e=>({id:e.id,t:e.titolo,d:e.data_inizio,o:e.ora_inizio,l:e.luogo,c:e.categoria}));
+  const today = new Date().toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  pushChatMsg('ai','...');
+  try{
+    const history = chatHistory.map(m=>`${m.role==='user'?'Utente':'Assistente'}: ${m.content}`).join('\n');
+    const res = await fetch('/api/generate',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({task:'chat', parts:[{type:'text', text:
+        `Sei l'assistente dell'agenda "Agenda AI". Data odierna: ${today}. Eventi attuali (JSON): ${JSON.stringify(compact)}. Rispondi in italiano in modo breve e concreto alle richieste dell'utente riguardo alla sua agenda (promemoria, calcolo date, riepiloghi). Non puoi creare eventi direttamente: se l'utente vuole aggiungere qualcosa, spiega chiaramente cosa proponi (titolo, data, ora) cosi' che possa poi confermarlo con il pulsante "Nuovo evento".\n\nConversazione finora:\n${history}\n\nRispondi all'ultimo messaggio dell'utente.`}]})
+    });
+    const data = await res.json();
+    if(data.error) throw new Error(data.error);
+    const text = data.text || 'Non sono riuscito a rispondere, riprova.';
+    document.getElementById('chatLog').lastChild.remove();
+    pushChatMsg('ai',text);
+    chatHistory.push({role:'assistant',content:text});
+  }catch(e){
+    document.getElementById('chatLog').lastChild.remove();
+    pushChatMsg('ai','Si è verificato un errore, riprova.');
+  }
+}
+
+/* ---------- Promemoria (controllo mentre l'app è aperta) ---------- */
+const REMINDER_MS = {'1h':3600000,'1g':86400000,'2g':172800000,'1s':604800000};
+function checkReminders(){
+  const now = new Date();
+  const due = state.events.filter(e=>{
+    if(!e.promemoria || !e.ora_inizio || e.stato==='annullato') return false;
+    const start = new Date(e.data_inizio+'T'+e.ora_inizio);
+    const remindAt = new Date(start.getTime() - (REMINDER_MS[e.promemoria]||0));
+    return now>=remindAt && now<start;
+  });
+  due.forEach(e=>{
+    const key='shown_'+e.id;
+    if(!sessionStorage_safe(key)) showToast('🔔 Promemoria: "'+e.titolo+'" — '+e.data_inizio.split('-').reverse().join('/')+' alle '+e.ora_inizio);
+  });
+}
+const _shownReminders = new Set();
+function sessionStorage_safe(key){ if(_shownReminders.has(key)) return true; _shownReminders.add(key); return false; }
+
+/* ---------- Init ---------- */
+loadState().then(()=>{
+  render();
+  checkReminders();
+  setInterval(checkReminders, 60000);
+});
+</script>
+</body>
+</html>
