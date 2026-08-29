@@ -658,16 +658,22 @@ function fileToText(file){
 function buildExtractionPrompt(extractedTextForStorage){
   const today = new Date().toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   const catList = state.categories.map(c=>c.id).join(', ');
-  return `Sei un assistente che legge documenti scolastici/personali italiani ed estrae eventi per un'agenda.
+  return `Sei un assistente estremamente scrupoloso che legge documenti scolastici/personali italiani ed estrae eventi per un'agenda. Il tuo unico compito in questo messaggio è l'estrazione completa: non fare riepiloghi, non scegliere "l'evento più importante", non fermarti al primo risultato trovato.
 Data odierna di riferimento: ${today}.
-${extractedTextForStorage ? ('Testo del documento da analizzare:\n"""\n'+extractedTextForStorage.slice(0,60000)+'\n"""') : 'Analizza il documento allegato.'}
+${extractedTextForStorage ? ('Testo del documento da analizzare:\n"""\n'+extractedTextForStorage.slice(0,60000)+'\n"""') : 'Analizza il documento allegato (che può contenere anche più pagine): leggilo pagina per pagina, fino all\u2019ultima.'}
 
-ISTRUZIONI IMPORTANTI:
-1. Leggi il documento con attenzione dall'inizio alla fine, riga per riga, inclusi eventuali fogli/pagine/sezioni successivi al primo. Individua e restituisci TUTTI gli eventi, appuntamenti e scadenze presenti, anche se sono molti (10, 20 o più). Non riassumere, non selezionarne solo alcuni, non fermarti a metà: se il documento contiene un elenco, una tabella o più fogli, scorrili fino in fondo, uno per uno.
-2. Presta particolare attenzione a ORARIO e SEDE/LUOGO, che vanno cercati con cura anche quando scritti in forma abbreviata o poco evidente: es. "ore 15:00", "h. 15:00-17:30", "dalle 9 alle 13", "alle 16", "presso l'Aula Magna", "in sede", "plesso di...", nomi di scuole, indirizzi, aule. Se un orario o un luogo compare una sola volta ma vale per più righe/eventi dello stesso blocco (es. tabella con un orario in testata), applicalo a tutti gli eventi di quel blocco.
-3. Per ciascun evento restituisci un oggetto con questi campi (usa null se l'informazione non è presente, NON inventare nulla):
+PROCEDIMENTO OBBLIGATORIO:
+Passo 1 — Prima di scrivere qualsiasi JSON, scorri l'intero contenuto e individua MENTALMENTE ogni singola data, orario o riga che potrebbe rappresentare un evento, un appuntamento o una scadenza distinti. Se il documento è una tabella o un elenco, ogni riga con una data propria è quasi sempre un evento a sé: NON accorpare più righe in un unico evento, e NON scegliere solo la prima o la più evidente.
+Passo 2 — Conta quanti eventi distinti hai individuato al passo 1.
+Passo 3 — Genera un oggetto JSON per OGNUNO degli eventi individuati al passo 1, nello stesso numero. Se ne hai individuati 15, l'array finale deve avere 15 elementi, non 1 o 2.
+
+ISTRUZIONI SUI CAMPI:
+1. Presta particolare attenzione a ORARIO e SEDE/LUOGO, cercandoli anche quando scritti in forma abbreviata o poco evidente: es. "ore 15:00", "h. 15:00-17:30", "dalle 9 alle 13", "alle 16", "presso l'Aula Magna", "in sede", "plesso di...", nomi di scuole, indirizzi, aule. Se un orario o un luogo compare una sola volta ma vale per più righe/eventi dello stesso blocco (es. tabella con un orario in testata), applicalo a tutti gli eventi di quel blocco.
+2. Per ciascun evento restituisci un oggetto con questi campi (usa null se l'informazione non è presente, NON inventare nulla):
 titolo, data_inizio (YYYY-MM-DD, risolvi le espressioni relative usando la data odierna), ora_inizio (HH:MM o null), ora_fine (HH:MM o null), luogo, categoria (una tra: ${catList}), persone_coinvolte, descrizione (MASSIMO 10 parole, sintetica), scadenza (true/false), priorita ("alta"/"normale"/"bassa"), ricorrenza (null oppure {"frequenza":"giornaliera|settimanale|mensile|annuale"}), affidabilita ("alta"/"media"/"bassa"), nota_incertezza (breve testo se ambiguo, altrimenti null).
-4. Se gli eventi sono molti, resta sintetico in ogni campo testuale per non superare lo spazio di risposta disponibile — ma non omettere eventi per questo motivo.
+3. Se gli eventi sono molti, resta sintetico in ogni campo testuale per non superare lo spazio di risposta disponibile — ma non omettere MAI eventi per questo motivo: la completezza dell'elenco è più importante del dettaglio di ogni singolo campo.
+
+RICORDA: un documento con un calendario, un elenco di date, o una tabella contiene quasi sempre PIÙ eventi. Restituire un solo evento quando il documento ne contiene chiaramente diversi è un errore grave da evitare.
 
 Rispondi SOLO con un array JSON valido, senza testo aggiuntivo, senza markdown, senza backtick.`;
 }
