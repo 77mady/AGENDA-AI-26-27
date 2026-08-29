@@ -1,4 +1,4 @@
-[README.md](https://github.com/user-attachments/files/31596084/README.md)
+[README.md](https://github.com/user-attachments/files/31605407/README.md)
 # Agenda AI — versione da pubblicare sul tuo sito (Vercel + GitHub)
 
 Questa cartella è pronta per essere pubblicata con la stessa modalità che
@@ -25,10 +25,19 @@ lato server.
 
 2. **Vai su vercel.com** → "Add New..." → "Project" → importa il
    repository appena creato. Non serve impostare comandi di build: Vercel
-   riconosce da solo `index.html` come sito statico e `api/generate.js`
-   come funzione serverless.
+   riconosce da solo `index.html` come sito statico e `api/*.js` come
+   funzioni serverless, e installa da solo la dipendenza `@vercel/blob`
+   elencata in `package.json`.
 
-3. **Imposta la chiave API come variabile d'ambiente:**
+3. **Attiva l'archiviazione condivisa (Vercel Blob):**
+   Nel progetto su Vercel vai su "Storage" → "Create Database" → scegli
+   "Blob" → dagli un nome e crealo, poi collegalo a questo progetto quando
+   richiesto ("Connect Project"). Questo passaggio imposta da solo la
+   variabile d'ambiente `BLOB_READ_WRITE_TOKEN`, necessaria perché l'agenda
+   funzioni. È gratuito nel piano Hobby entro una soglia di utilizzo ampia
+   per un uso personale.
+
+4. **Imposta la chiave API come variabile d'ambiente:**
    Nelle impostazioni del progetto su Vercel vai su
    `Settings → Environment Variables` e aggiungi:
    - `GEMINI_API_KEY` = la tua chiave da https://aistudio.google.com/app/apikey
@@ -37,21 +46,37 @@ lato server.
      richieste che non contengono immagini o PDF (ricerca, assistente,
      testo incollato), nel caso Gemini non risponda.
 
-4. **Fai un nuovo deploy** (su Vercel, dopo aver salvato le variabili
-   d'ambiente, serve rifare il deploy perché vengano applicate — dalla
-   scheda "Deployments" scegli l'ultimo e clicca "Redeploy").
+5. **Fai un nuovo deploy** (dopo aver collegato lo storage Blob e salvato le
+   variabili d'ambiente, serve rifare il deploy perché vengano applicate —
+   dalla scheda "Deployments" scegli l'ultimo e clicca "Redeploy").
 
-5. **Apri l'indirizzo che Vercel ti assegna** (o collega il tuo dominio
-   personalizzato, come per EduPlan) — l'app è pronta.
+6. **Apri l'indirizzo che Vercel ti assegna** (o collega il tuo dominio
+   personalizzato, come per EduPlan) — l'app è pronta. Puoi aprirla
+   direttamente dal browser oppure incorporarla in un iframe su un altro
+   sito (es. Google Sites): in entrambi i casi vedrai sempre gli stessi
+   dati, perché ora sono salvati in modo condiviso lato server e non più
+   nel browser.
 
 ## Nota su dove sono salvati i dati
 
-I tuoi eventi, categorie e documenti sono salvati nel `localStorage` del
-browser che stai usando: restano quindi legati a quel singolo
-dispositivo/browser e non si sincronizzano automaticamente tra telefono e
-computer. Se in futuro vuoi la sincronizzazione tra dispositivi, serve
-aggiungere un database (es. Vercel KV/Postgres, gratuiti anch'essi entro
-una soglia) — è un passo successivo possibile ma non incluso qui.
+I tuoi eventi, categorie e documenti sono ora salvati in un unico archivio
+condiviso su Vercel Blob Storage, raggiunto dall'app tramite la funzione
+`api/data.js`. Questo garantisce che i dati siano identici sia aprendo il
+sito direttamente sia incorporandolo in un iframe su un altro dominio (i
+browser moderni, per motivi di privacy, tratterebbero altrimenti queste due
+situazioni come memorie separate se si fosse usato il `localStorage` del
+browser, come nella prima versione).
+
+**Nota sulla privacy:** questo endpoint di salvataggio non richiede una
+password: chiunque conoscesse l'indirizzo esatto dell'API potrebbe in teoria
+leggere o modificare i dati. Per un'agenda personale ad uso scolastico è un
+compromesso ragionevole vista la semplicità, ma se in futuro vuoi aggiungere
+una protezione con password è un passo successivo possibile.
+
+**Migrazione automatica:** la prima volta che apri la nuova versione dal
+browser in cui avevi già inserito appuntamenti, l'app li troverà ancora
+salvati localmente e li trasferirà da sola nell'archivio condiviso — non
+li perderai.
 
 ## Limiti di Gemini/Mistral da tenere presenti
 
