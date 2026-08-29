@@ -663,7 +663,7 @@ Data odierna di riferimento: ${today}.
 ${extractedTextForStorage ? ('Testo del documento da analizzare:\n"""\n'+extractedTextForStorage.slice(0,60000)+'\n"""') : 'Analizza il documento allegato.'}
 
 ISTRUZIONI IMPORTANTI:
-1. Individua e restituisci TUTTI gli eventi, appuntamenti e scadenze presenti nel documento, anche se sono molti (10, 20 o più). Non riassumere, non selezionarne solo alcuni, non fermarti a metà: se il documento contiene un elenco o una tabella, scorrilo fino alla fine.
+1. Leggi il documento con attenzione dall'inizio alla fine, riga per riga, inclusi eventuali fogli/pagine/sezioni successivi al primo. Individua e restituisci TUTTI gli eventi, appuntamenti e scadenze presenti, anche se sono molti (10, 20 o più). Non riassumere, non selezionarne solo alcuni, non fermarti a metà: se il documento contiene un elenco, una tabella o più fogli, scorrili fino in fondo, uno per uno.
 2. Presta particolare attenzione a ORARIO e SEDE/LUOGO, che vanno cercati con cura anche quando scritti in forma abbreviata o poco evidente: es. "ore 15:00", "h. 15:00-17:30", "dalle 9 alle 13", "alle 16", "presso l'Aula Magna", "in sede", "plesso di...", nomi di scuole, indirizzi, aule. Se un orario o un luogo compare una sola volta ma vale per più righe/eventi dello stesso blocco (es. tabella con un orario in testata), applicalo a tutti gli eventi di quel blocco.
 3. Per ciascun evento restituisci un oggetto con questi campi (usa null se l'informazione non è presente, NON inventare nulla):
 titolo, data_inizio (YYYY-MM-DD, risolvi le espressioni relative usando la data odierna), ora_inizio (HH:MM o null), ora_fine (HH:MM o null), luogo, categoria (una tra: ${catList}), persone_coinvolte, descrizione (MASSIMO 10 parole, sintetica), scadenza (true/false), priorita ("alta"/"normale"/"bassa"), ricorrenza (null oppure {"frequenza":"giornaliera|settimanale|mensile|annuale"}), affidabilita ("alta"/"media"/"bassa"), nota_incertezza (breve testo se ambiguo, altrimenti null).
@@ -758,8 +758,10 @@ async function handleFile(file){
     } else if(ext==='xlsx'){
       const buf = await file.arrayBuffer();
       const wb = XLSX.read(buf,{type:'array'});
-      const sheet = wb.Sheets[wb.SheetNames[0]];
-      extractedTextForStorage = XLSX.utils.sheet_to_csv(sheet);
+      extractedTextForStorage = wb.SheetNames.map(name=>{
+        const csv = XLSX.utils.sheet_to_csv(wb.Sheets[name]);
+        return `--- Foglio: ${name} ---\n${csv}`;
+      }).join('\n\n');
     } else if(ext==='txt'){
       extractedTextForStorage = await fileToText(file);
     } else {
@@ -797,11 +799,13 @@ function renderReview(){
 function reviewCardHtml(e,i){
   if(e._dismissed) return '';
   const dataFmt = e.data_inizio ? e.data_inizio.split('-').reverse().join('/') : '<span class="warn-note">data non individuata</span>';
+  const alreadyExists = e.data_inizio ? !!findExactDuplicate(e) : false;
   return `<div class="review-card ${confClass(e.affidabilita)}">
     <div class="review-head">
       <strong>${escapeHtml(e.titolo||'(senza titolo)')}</strong>
       <span class="conf-badge ${confAffid(e.affidabilita)}">${e.affidabilita==='alta'?'🟢 Alta affidabilità':e.affidabilita==='media'?'🟡 Da verificare':'🔴 Incerto'}</span>
     </div>
+    ${alreadyExists?'<div class="warn-note" style="color:var(--sage);">✔️ Già presente in agenda — se confermi non verrà duplicato.</div>':''}
     <div class="review-body">
       📅 ${dataFmt} ${e.ora_inizio?(' · ⏰ '+e.ora_inizio+(e.ora_fine?(' – '+e.ora_fine):'')):' · <span class="warn-note" style="display:inline">⏰ orario non trovato</span>'}<br>
       ${e.luogo?('📍 '+escapeHtml(e.luogo)+'<br>'):'📍 <span class="warn-note" style="display:inline">luogo non trovato</span><br>'}
@@ -852,13 +856,32 @@ function saveReviewEdit(i){
   e.affidabilita='alta'; e.nota_incertezza=null;
   renderReview();
 }
-function findDuplicate(e){
+function normalizeTitle(t){
+  return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9\s]/g,'').replace(/\s+/g,' ').trim();
+}
+function titleSimilarity(a,b){
+  const wa=new Set(normalizeTitle(a).split(' ').filter(Boolean));
+  const wb=new Set(normalizeTitle(b).split(' ').filter(Boolean));
+  if(wa.size===0||wb.size===0) return 0;
+  let common=0; wa.forEach(w=>{ if(wb.has(w)) common++; });
+  return common/Math.max(wa.size,wb.size);
+}
+function findExactDuplicate(e){
   return state.events.find(x=>x.stato!=='annullato' && x.data_inizio===e.data_inizio &&
-    x.titolo && e.titolo && x.titolo.toLowerCase().trim()===e.titolo.toLowerCase().trim());
+    (x.ora_inizio||null)===(e.ora_inizio||null) && normalizeTitle(x.titolo)===normalizeTitle(e.titolo));
+}
+function findSimilarDuplicate(e){
+  return state.events.find(x=>x.stato!=='annullato' && x.data_inizio===e.data_inizio &&
+    normalizeTitle(x.titolo)!==normalizeTitle(e.titolo) && titleSimilarity(x.titolo,e.titolo)>=0.6);
 }
 function commitReviewEvent(e, docRecord){
   return new Promise(resolve=>{
-    const dup = findDuplicate(e);
+    const exact = findExactDuplicate(e);
+    if(exact){
+      resolve('skipped');
+      return;
+    }
     const newEvent = {
       id: uid(), titolo: e.titolo||'(senza titolo)', data_inizio: e.data_inizio||todayIso(),
       data_fine: null, ora_inizio: e.ora_inizio||null, ora_fine: e.ora_fine||null,
@@ -867,35 +890,38 @@ function commitReviewEvent(e, docRecord){
       promemoria:'', ricorrenza: e.ricorrenza||{frequenza:'nessuna'},
       documento_origine: docRecord.nome, stato:'confermato', data_creazione: new Date().toISOString()
     };
+    const dup = findSimilarDuplicate(e);
     if(dup){
       askChoice(
         `⚠️ Potrebbe esistere già un evento simile ("${dup.titolo}" il ${dup.data_inizio}).\n\nScegli come procedere:`,
         'Aggiorna esistente', 'Mantieni entrambi',
-        ()=>{ Object.assign(dup,newEvent,{id:dup.id}); resolve(); },
-        ()=>{ state.events.push(newEvent); resolve(); }
+        ()=>{ Object.assign(dup,newEvent,{id:dup.id}); resolve('updated'); },
+        ()=>{ state.events.push(newEvent); resolve('added'); }
       );
     } else {
       state.events.push(newEvent);
-      resolve();
+      resolve('added');
     }
   });
 }
 async function confirmReviewItem(i){
-  await commitReviewEvent(pendingReview.events[i], pendingReview.doc);
+  const result = await commitReviewEvent(pendingReview.events[i], pendingReview.doc);
   pendingReview.events[i]._dismissed=true;
   await saveEvents();
-  showToast("Evento aggiunto all'agenda.");
+  showToast(result==='skipped' ? 'Evento già presente in agenda: non è stato duplicato.' : "Evento aggiunto all'agenda.");
   renderReview();
   if(pendingReview.events.every(e=>e._dismissed)){ closeModal(); render(); }
 }
 async function confirmAllReview(){
   const toAdd = pendingReview.events.filter(e=>!e._dismissed);
+  let skipped=0, added=0;
   for(const e of toAdd){
-    await commitReviewEvent(e, pendingReview.doc);
+    const result = await commitReviewEvent(e, pendingReview.doc);
+    if(result==='skipped') skipped++; else added++;
   }
   await saveEvents();
   closeModal(); render();
-  showToast("Eventi aggiunti all'agenda.");
+  showToast(skipped>0 ? `${added} evento/i aggiunto/i, ${skipped} già presente/i (non duplicati).` : "Eventi aggiunti all'agenda.");
 }
 
 /* ---------- Natural language search ---------- */
