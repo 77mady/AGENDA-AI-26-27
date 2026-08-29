@@ -28,7 +28,7 @@ export default async function handler(req, res) {
       if (!info) {
         return res.status(200).json({ events: [], categories: null, documents: [] });
       }
-      const r = await fetch(info.url, { cache: "no-store" });
+      const r = await fetch(info.url + (info.url.includes('?')?'&':'?') + 'v=' + Date.now(), { cache: "no-store" });
       if (!r.ok) return res.status(200).json({ events: [], categories: null, documents: [] });
       const data = await r.json();
       return res.status(200).json(data);
