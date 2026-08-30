@@ -22,13 +22,20 @@ import { put, head } from "@vercel/blob";
 const BLOB_PATH = "agenda-ai-data.json";
 
 export default async function handler(req, res) {
+  const token = process.env.BLOB_READ_WRITE_TOKEN;
+
   if (req.method === "GET") {
     try {
       const info = await head(BLOB_PATH).catch(() => null);
       if (!info) {
         return res.status(200).json({ events: [], categories: null, documents: [] });
       }
-      const r = await fetch(info.url + (info.url.includes('?')?'&':'?') + 'v=' + Date.now(), { cache: "no-store" });
+      // Lo store è "Private": la lettura del contenuto richiede il token
+      // nell'header Authorization, non solo per le operazioni dell'SDK.
+      const r = await fetch(info.url + (info.url.includes('?')?'&':'?') + 'v=' + Date.now(), {
+        cache: "no-store",
+        headers: token ? { Authorization: "Bearer " + token } : {},
+      });
       if (!r.ok) return res.status(200).json({ events: [], categories: null, documents: [] });
       const data = await r.json();
       return res.status(200).json(data);
@@ -41,7 +48,7 @@ export default async function handler(req, res) {
     try {
       const body = req.body || {};
       await put(BLOB_PATH, JSON.stringify(body), {
-        access: "public",
+        access: "private",
         addRandomSuffix: false,
         allowOverwrite: true,
         contentType: "application/json",
