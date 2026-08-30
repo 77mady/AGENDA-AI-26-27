@@ -233,13 +233,15 @@ async function saveAllState(){
       body: JSON.stringify({events: state.events, categories: state.categories, documents: state.documents})
     });
     if(!res.ok){ const d=await res.json().catch(()=>({})); throw new Error(d.error||'errore di salvataggio'); }
+    return true;
   }catch(e){
-    showToast('⚠️ Impossibile salvare sul server condiviso al momento. Riprova tra poco.');
+    showToast('⚠️ Salvataggio non riuscito: ' + (e.message||'errore sconosciuto'));
+    return false;
   }
 }
-async function saveEvents(){ await saveAllState(); }
-async function saveCategories(){ await saveAllState(); }
-async function saveDocuments(){ await saveAllState(); }
+async function saveEvents(){ return await saveAllState(); }
+async function saveCategories(){ return await saveAllState(); }
+async function saveDocuments(){ return await saveAllState(); }
 
 
 function showToast(msg){
@@ -506,9 +508,11 @@ function askChoice(message, yesLabel, noLabel, onYes, onNo){
 }
 
 function deleteEvent(id){
-  askConfirm('Eliminare definitivamente questo evento?', ()=>{
+  askConfirm('Eliminare definitivamente questo evento?', async ()=>{
     state.events = state.events.filter(e=>e.id!==id);
-    saveEvents(); closeModal(); render(); showToast('Evento eliminato.');
+    const ok = await saveEvents();
+    closeModal(); render();
+    if(ok) showToast('Evento eliminato.');
   });
 }
 
@@ -531,17 +535,17 @@ function renderSettings(root){
     <button class="btn btn-danger btn-sm" onclick="wipeAll()">Elimina tutti i dati dell'agenda</button>
   </div>`;
 }
-function addCategory(){
+async function addCategory(){
   const icon=document.getElementById('newCatIcon').value.trim()||'🎯';
   const name=document.getElementById('newCatName').value.trim();
   if(!name) return;
   state.categories.push({id:uid(),nome:name,icona:icon,colore:'#8A8F9E'});
-  saveCategories(); renderSettings(document.getElementById('viewRoot'));
+  await saveCategories(); renderSettings(document.getElementById('viewRoot'));
 }
-function removeCategory(id){
+async function removeCategory(id){
   if(state.categories.length<=1) return;
   state.categories=state.categories.filter(c=>c.id!==id);
-  saveCategories(); renderSettings(document.getElementById('viewRoot'));
+  await saveCategories(); renderSettings(document.getElementById('viewRoot'));
 }
 async function wipeAll(){
   askConfirm('Questa operazione eliminerà tutti gli eventi e i documenti collegati. Continuare?', async ()=>{
@@ -599,7 +603,7 @@ function openEventModal(id){
   </div>`;
 }
 function closeModal(){ document.getElementById('modalRoot').innerHTML=''; }
-function saveEventFromModal(id){
+async function saveEventFromModal(id){
   const titolo=document.getElementById('f_titolo').value.trim();
   if(!titolo){ showToast('Inserisci un titolo.'); return; }
   const data={
@@ -623,7 +627,9 @@ function saveEventFromModal(id){
   };
   const idx=state.events.findIndex(e=>e.id===id);
   if(idx>=0) state.events[idx]=data; else state.events.push(data);
-  saveEvents(); closeModal(); render(); showToast('Evento salvato.');
+  closeModal(); render();
+  const ok = await saveEvents();
+  if(ok) showToast('Evento salvato.');
 }
 
 /* ---------- Import & AI extraction ---------- */
